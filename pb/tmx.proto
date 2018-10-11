@@ -55,7 +55,13 @@ message Data {
 }
 
 message DataTile {
-	int64 gid = 1;
+	int64 id = 1;
+	TileSet tileset = 2;
+	bool is_horizontal_flip = 3;
+	bool is_vertical_flip = 4;
+	bool is_diagonal_flip = 5;
+	bool is_nil = 6;
+	int64 gid = 7;
 }
 
 message DecodedTile {

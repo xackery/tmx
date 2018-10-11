@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/xackery/tmx/pb"
+	"github.com/xackery/tmx/tmx"
 	"gopkg.in/yaml.v2"
 )
 
@@ -32,7 +32,7 @@ func (c *Client) LoadFile(ctx context.Context, path string) (m *pb.Map, err erro
 	}
 	defer f.Close()
 	m = &pb.Map{}
-	d := NewDecoder(f)
+	d := tmx.NewDecoder(f)
 	err = d.Decode(m)
 	if err != nil {
 		err = errors.Wrap(err, "failed to marshal")
@@ -52,10 +52,10 @@ func (c *Client) SaveFile(ctx context.Context, m *pb.Map, path string) (err erro
 	ext := filepath.Ext(path)
 	switch ext {
 	case ".data":
-		e := NewEncoder(f)
+		e := tmx.NewEncoder(f)
 		err = e.Encode(m)
 	case ".bin":
-		e := NewEncoder(f)
+		e := tmx.NewEncoder(f)
 		err = e.Encode(m)
 	case ".xml":
 		e := xml.NewEncoder(f)
@@ -75,31 +75,5 @@ func (c *Client) SaveFile(ctx context.Context, m *pb.Map, path string) (err erro
 		return
 	}
 
-	return
-}
-
-func toInt64(source string) (value int64) {
-	value, err := strconv.ParseInt(source, 10, 64)
-	if err != nil {
-		fmt.Println("invalid integer value:", source)
-	}
-	return
-}
-
-func toBool(source string) (value bool) {
-	val, err := strconv.ParseInt(source, 10, 64)
-	if err != nil {
-		fmt.Println("invalid integer value:", source)
-	}
-	value = val > 0
-	return
-}
-
-func toFloat32(source string) (value float32) {
-	val, err := strconv.ParseFloat(source, 32)
-	if err != nil {
-		fmt.Println("invalid float value:", source)
-	}
-	value = float32(val)
 	return
 }

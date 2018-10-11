@@ -2,7 +2,7 @@
 
 Tiled TMX and TSX file support
 
-## Usage
+## Use as an executable
 
 `tmx source_file destination_file`
 

@@ -1,12 +1,18 @@
 # tmx
 
-Tiled TMX and TSX file support
+This project is not yet released. You can talk about it [here](https://discord.gg/dF55WRZ)
+
+TMX takes a [Tiled](https://www.mapeditor.org/) .tmx file and transforms it into an optimized asset for games. It parses the tmx base file, any external tile sets (tsx), along with all image assets and repacks them to optimize for in game usage. The output files are [protobuf](https://developers.google.com/protocol-buffers/) defined.
 
 ## Use as an executable
 
-`tmx source_file destination_file`
+* [download from releases](https://github.com/xackery/tmx/releases) or `go get -u github.com/xackery/tmx`
+* `usage: tmx source_file destination_file`
+* supported output: .bin, .data, .json, .xml, .yml
 
-### Use as a library
+### Use tool as a library
+
+You can import tmx into your go projects and create custom flows.
 
 ```go
 package main
@@ -31,3 +37,9 @@ func main() {
   fmt.Println(tmx)
 }
 ```
+
+## Planned Features
+
+* Documentation on how to load protobuf serialized .bin and .data files
+
+* Finish GID indexing and mirror/flip detection

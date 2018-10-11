@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+package pb;
+
+message Map {
+	string version = 1;
+	string orientation = 2;
+	int64 width = 3;
+	int64 height = 4;
+	int64 tile_width = 5;
+	int64 tile_height = 6;
+	repeated Property properties = 7;
+	repeated Layer layers = 8;
+	repeated ObjectGroup object_groups = 9;
+	string tiled_version = 10;
+	string render_order = 11;
+	int64 infinite = 12;
+	int64 hex_side_length = 13;
+	string stagger_axis = 14;
+	string background_color = 15;
+	string next_layer_id = 16;
+	string next_object_id = 17;
+	repeated TileSet tile_sets = 18;
+	repeated ImageLayer image_layers = 19;
+	repeated Group groups = 20;
+}
+
+message Tile {
+	int64 id = 1;
+	Image image = 2;
+}
+
+message TileSet {
+	int64 first_gid = 1;
+	string source = 2;
+	string name = 3;
+	int64 tile_width = 4;
+	int64 tile_height = 5;
+	int64 spacing = 6;
+	int64 margin = 7;
+	repeated Property properties = 8;
+	Image image = 9;
+	repeated Tile tiles = 10;
+	int64 tile_count = 11;
+	int64 column_count = 12;
+}
+
+
+message Data {
+	string encoding = 1;
+	string compression = 2;
+	bytes raw_data = 3;
+	repeated DataTile data_tiles = 4;
+	repeated Chunk chunks = 5;
+}
+
+message DataTile {
+	int64 gid = 1;
+}
+
+message DecodedTile {
+	int64 id = 1;
+	TileSet tileset = 2;
+	bool horizontal_flip = 3;
+	bool vertical_flip = 4;
+	bool diagonal_flip = 5;
+	bool nil = 6;
+}
+
+message Image {
+	string source = 1;
+	string trans = 2;
+	int64 width = 3;
+	int64 height = 4;
+}
+
+message Layer {
+	string name = 1;
+	float opacity = 2;
+	bool visible = 3;
+	repeated Property properties = 4;
+	Data data = 5;
+	TileSet tileset = 7;
+	bool empty = 8;
+	int64 id = 9;
+	int64 x = 10;
+	int64 y = 11;
+	int64 height = 12;
+	int64 width = 13;
+}
+
+message Object {
+	string name = 1;
+	string type = 2;
+	double x = 3;
+	double y = 4;
+	double width = 5;
+	double height = 6;
+	int64 gid = 7;
+	bool visible = 8;
+	repeated Polygon polygons = 9;
+	repeated PolyLine poly_lines = 10;
+	repeated Property properties = 11;
+}
+
+message ObjectGroup {
+	string name = 1;
+	string color = 2;
+	float opacity = 3;
+	bool visible = 4;
+	repeated Property properties = 5;
+	repeated Object objects = 6;
+}
+
+message PolyLine {
+	string points = 1;
+}
+
+message Polygon {
+	string points = 1;
+}
+
+
+message Property {
+	string name = 1;
+	string value = 2;
+	string type = 3;
+}
+
+message ImageLayer {
+	int64 id = 1;
+	string name = 2;
+	int64 offset_x = 3;
+	int64 offset_y = 4;
+	int64 x = 5;
+	int64 y = 6;
+	float opacity = 7;
+	bool visible = 8;
+}
+
+message Group {
+	int64 id = 1;
+	string name = 2;
+	int64 offset_x = 3;
+	int64 offset_y = 4;
+	float opacity = 7;
+	bool visible = 8;
+}
+
+message Chunk {
+	int64 x = 1;
+	int64 y = 2;
+	int64 width = 3;
+	int64 height = 4;
+}

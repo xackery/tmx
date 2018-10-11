@@ -1,4 +1,7 @@
-# tmx
+[![GoDoc](https://godoc.org/github.com/xackery/goeq?status.svg)](https://godoc.org/github.com/xackery/goeq)
+[![Go Report Card](https://goreportcard.com/badge/github.com/xackery/tmx)](https://goreportcard.com/report/github.com/xackery/tmx) [![Build Status](https://travis-ci.org/xackery/tmx.svg)](https://travis-ci.org/Xackery/tmx.svg?branch=master) [![Coverage Status](https://coveralls.io/repos/github/xackery/tmx/badge.svg?branch=master)](https://coveralls.io/github/xackery/tmx?branch=master)
+
+# tmx - Tiled loader and packer
 
 This project is not yet released. You can talk about it [here](https://discord.gg/dF55WRZ)
 

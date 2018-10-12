@@ -27,7 +27,9 @@ message Map {
 
 message Tile {
 	int64 id = 1;
-	Image image = 2;
+	string type = 2;
+	string terrain = 3;
+	float probability = 4;
 }
 
 message TileSet {
@@ -78,6 +80,7 @@ message Image {
 	string trans = 2;
 	int64 width = 3;
 	int64 height = 4;
+	string format = 5;
 }
 
 message Layer {

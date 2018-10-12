@@ -9,10 +9,14 @@ import (
 	"github.com/xackery/tmx/client"
 )
 
+var (
+	version string
+)
+
 func main() {
 	err := run()
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("error:", err.Error())
 		os.Exit(1)
 	}
 }
@@ -20,15 +24,18 @@ func main() {
 func run() (err error) {
 	var src, dst string
 	args := os.Args
+	if isVersionCheck(args) {
+		return
+	}
 	if len(args) < 3 {
 		usage()
 		return
 	}
 
-	if len(args) > 1 {
+	if len(args) > 2 {
 		src = args[len(args)-2]
 	}
-	if len(args) > 2 {
+	if len(args) > 1 {
 		dst = args[len(args)-1]
 	}
 
@@ -42,14 +49,14 @@ func run() (err error) {
 	if err != nil {
 		return
 	}
-	m, err := c.LoadFile(ctx, src)
+	m, a, err := c.LoadFile(ctx, src)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to load from %s", src)
+		err = errors.Wrapf(err, "source %s", src)
 		return
 	}
-	err = c.SaveFile(ctx, m, dst)
+	err = c.SaveFiles(ctx, m, a, dst)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to save to %s", dst)
+		err = errors.Wrapf(err, "target %s", dst)
 		return
 	}
 	return
@@ -57,5 +64,16 @@ func run() (err error) {
 
 func usage() (err error) {
 	fmt.Println("usage: tmx source_file target_file")
+	return
+}
+
+func isVersionCheck(args []string) (isCheck bool) {
+	for _, arg := range args {
+		if arg == "-v" || arg == "version" || arg == "/?" {
+			fmt.Println("tmx version", version)
+			isCheck = true
+			return
+		}
+	}
 	return
 }

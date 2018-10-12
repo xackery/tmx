@@ -9,9 +9,11 @@ example-all:
 	@make example NAME=desert
 	@make example NAME=perspective_walls
 	@make example NAME=sewers
+	@make example NAME=hexagonal-mini
 	@make example NAME=test_hexagonal_tile_60x60x30
 	@make example NAME=island
 	@make example NAME=sewers DIR=sewer_automap/
+	@make example NAME=lttp
 example:
 	@go run main.go examples/$(DIR)$(NAME).tmx out/$(NAME).json
 

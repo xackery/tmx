@@ -8,9 +8,11 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/xackery/tmx/atlas"
+	"github.com/xackery/tmx/model"
 	"github.com/xackery/tmx/pb"
 	"github.com/xackery/tmx/tmx"
 	"gopkg.in/yaml.v2"
@@ -27,6 +29,7 @@ func New(ctx context.Context) (c *Client, err error) {
 
 // LoadFile loads a TMX file and all referenced assets
 func (c *Client) LoadFile(ctx context.Context, path string) (m *pb.Map, a *atlas.Atlas, err error) {
+	start := time.Now()
 	dir := filepath.Dir(path)
 	//load map
 	m, err = NewMap(ctx, path)
@@ -64,13 +67,16 @@ func (c *Client) LoadFile(ctx context.Context, path string) (m *pb.Map, a *atlas
 		}
 		sourceFile = ts.Image.Source
 		imgPath := fmt.Sprintf("%s/%s", dir, sourceFile)
+		fmt.Println(imgPath)
 		a, err = NewAtlas(ctx, imgPath, nt)
 		if err != nil {
 			err = errors.Wrapf(err, "tsx %d %s (img: %s)", firstGid, sourceFile, imgPath)
 			return
 		}
 	}
-
+	if model.IsVerbose() {
+		fmt.Println("complete", time.Since(start))
+	}
 	return
 }
 
@@ -115,10 +121,13 @@ func (c *Client) SaveFiles(ctx context.Context, m *pb.Map, a *atlas.Atlas, path 
 		fmt.Println("warning: no atlas generated")
 		return
 	}
+
+	path = path[0 : len(path)-len(ext)]
 	//for now just png for atlas
-	dir := filepath.Dir(path)
-	atlasFile := "out.png"
-	imgf, err := os.Create(fmt.Sprintf("%s/%s", dir, atlasFile))
+	//dir := filepath.Dir(path)
+	atlasFile := ".png"
+	imgPath := fmt.Sprintf("%s%s", path, atlasFile)
+	imgf, err := os.Create(imgPath)
 	if err != nil {
 		err = errors.Wrap(err, "failed to create file")
 		return
@@ -130,7 +139,7 @@ func (c *Client) SaveFiles(ctx context.Context, m *pb.Map, a *atlas.Atlas, path 
 	}
 	err = e.Encode(imgf, a.Image())
 	if err != nil {
-		err = errors.Wrapf(err, "encode %s/%s", dir, atlasFile)
+		err = errors.Wrapf(err, "atlasEncode %s", imgPath)
 		return
 	}
 	return

@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/pkg/errors"
+	"github.com/xackery/tmx/model"
 	"github.com/xackery/tmx/pb"
 	"golang.org/x/image/draw"
 )
@@ -40,11 +41,21 @@ func (d *Decoder) Decode(a *Atlas) (err error) {
 	oldIndex := int64(0)
 	var offset image.Point
 
+	total := d.t.TileCount
+	oldPercent := int64(-1)
+
 	for offset.Y = d.img.Bounds().Min.Y; offset.Y < d.img.Bounds().Max.Y; offset.Y += int(d.t.TileHeight) {
 		for offset.X = d.img.Bounds().Min.X; offset.X < d.img.Bounds().Max.X; offset.X += int(d.t.TileWidth) {
 			tile := image.NewRGBA(tileSize)
+			if model.IsVerbose() {
+				percent := int64(float64(float64(oldIndex)/float64(total)) * float64(100))
+				if oldPercent != percent {
+					fmt.Printf("%d%%s, ", percent)
+					oldPercent = percent
+				}
+			}
 			draw.Draw(tile, tileSize, d.img, offset, draw.Src)
-			newIndex := a.AppendUnique(tile)
+			newIndex := a.AppendUniqueThread(tile)
 			a.tileMap[oldIndex] = newIndex
 			oldIndex++
 		}

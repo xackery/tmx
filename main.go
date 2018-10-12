@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/xackery/tmx/client"
+	"github.com/xackery/tmx/model"
 )
 
 var (
@@ -25,6 +26,10 @@ func run() (err error) {
 	var src, dst string
 	args := os.Args
 	if isVersionCheck(args) {
+		return
+	}
+	if isVerboseCheck(args) {
+		model.SetVerbose(true)
 		return
 	}
 	if len(args) < 3 {
@@ -67,9 +72,18 @@ func usage() (err error) {
 	return
 }
 
+func isVerboseCheck(args []string) (isVerbose bool) {
+	for _, arg := range args {
+		if arg == "-v" {
+			isVerbose = true
+			return
+		}
+	}
+	return
+}
 func isVersionCheck(args []string) (isCheck bool) {
 	for _, arg := range args {
-		if arg == "-v" || arg == "version" || arg == "/?" {
+		if arg == "version" || arg == "/?" {
 			fmt.Println("tmx version", version)
 			isCheck = true
 			return

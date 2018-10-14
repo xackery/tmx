@@ -1,122 +1,88 @@
 package atlas
 
 import (
-	"context"
 	"fmt"
 	"image"
 	"math"
-	"sync"
 
-	"github.com/disintegration/imaging"
+	"github.com/xackery/tmx/model"
+	"github.com/xackery/tmx/pb"
+	"golang.org/x/image/draw"
 )
 
 // Atlas represents an image atlas
 type Atlas struct {
-	tiles   map[int64]*image.RGBA
-	tileMap map[int64]int64
-	img     *image.RGBA
+	tiles        map[int64]*image.RGBA
+	tileMap      map[uint32]*model.GID
+	img          *image.RGBA
+	tileWidth    int64
+	tileHeight   int64
+	lastIndex    uint32
+	newTileCount int
+	oldTileCount int
 }
 
-type scanImageRequest struct {
-	ctx       context.Context
-	tile      *image.NRGBA
-	img       *image.NRGBA
-	wg        *sync.WaitGroup
-	matchChan chan *scanImageResponse
-	index     int64
-	rotation  int
-}
+// Bake returns the internal image
+func (a *Atlas) Bake(m *pb.Map) (img *image.RGBA, err error) {
 
-type scanImageResponse struct {
-	index    int64
-	rotation int
-}
-
-// AppendUniqueThread will append if unique, otherwise returns existing index
-func (a *Atlas) AppendUniqueThread(img *image.RGBA) (index int64) {
-	var wg sync.WaitGroup
-	matchChan := make(chan *scanImageResponse)
-	doneChan := make(chan bool)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	rotation := 0
-	nImg := imaging.Rotate90(img)
-	var tile *image.NRGBA
-	for index = range a.tiles {
-		rotation = 1
-		tile = imaging.Rotate90(a.tiles[index])
-		req := &scanImageRequest{
-			ctx:       ctx,
-			tile:      &image.NRGBA{},
-			img:       &image.NRGBA{},
-			wg:        &wg,
-			matchChan: matchChan,
-			index:     index,
-			rotation:  rotation,
-		}
-		*req.tile = *tile
-		*req.img = *nImg
-		wg.Add(1)
-		go scanImage(req)
-		for i := 0; i < 3; i++ {
-			rotation++
-			tile = imaging.Rotate90(tile)
-			req := &scanImageRequest{
-				ctx:       ctx,
-				tile:      &image.NRGBA{},
-				img:       &image.NRGBA{},
-				wg:        &wg,
-				matchChan: matchChan,
-				index:     index,
-				rotation:  rotation,
+	//now we remap the map data with the new tilmap
+	for i := range m.Layers {
+		for j, d := range m.Layers[i].Data.DataTiles {
+			if d.Gid == 0 {
+				continue
 			}
-			*req.tile = *tile
-			*req.img = *nImg
-			wg.Add(1)
-			go scanImage(req)
-		}
+			oldGid := model.NewGID(d.Gid)
 
-	}
-	go func() {
-		wg.Wait()
-		doneChan <- true
-	}()
-
-	select {
-	case resp := <-matchChan:
-		index = resp.index
-		//fmt.Println("winner:", resp.rotation, resp.index)
-	case <-doneChan:
-		//fmt.Println("make new")
-		index = int64(len(a.tiles))
-		a.tiles[index] = img
-	}
-	return
-}
-
-func scanImage(req *scanImageRequest) {
-	img := req.img
-	tile := req.tile
-	defer req.wg.Done()
-	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
-		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
-			select {
-			case <-req.ctx.Done():
-				return
-			default:
-			}
-			if tile.At(x, y) != img.At(x, y) {
-				//fmt.Println("not", req.rotation, req.index)
+			newGid := a.tileMap[model.Index(d.Gid)]
+			err = newGid.RotationUpdate(oldGid.RotationRead())
+			if err != nil {
 				return
 			}
+			//fmt.Println("remapped", oldGid.ValueRead(), oldGid.Index(), oldGid.RotationRead(), "to", newGid.ValueRead(), newGid.Index(), "rotation", newGid.RotationRead())
+			if newGid == nil {
+				continue
+			}
+			newGid.RotationUpdate(oldGid.RotationRead())
+			m.Layers[i].Data.DataTiles[j].Gid = newGid.ValueRead()
 		}
 	}
-	req.matchChan <- &scanImageResponse{index: req.index, rotation: req.rotation}
-}
 
-// Image returns the internal image
-func (a *Atlas) Image() (img *image.RGBA) {
-	img = a.img
+	//need to remove hard code
+	//sheetWidth := 1024
+	sheetWidth := 512
+	img = image.NewRGBA(image.Rect(0, 0, sheetWidth, sheetWidth))
+	//may not be needed
+	//a.tileWidth += 60
+	//a.tileHeight += 60
+	tileSize := image.Rect(0, 0, int(a.tileWidth), int(a.tileHeight))
+	offset := image.ZP
+	//fmt.Println(len(a.tiles), "total tiles")
+	for _, tile := range a.tiles {
+
+		offset.X += int(a.tileWidth)
+		if offset.X > sheetWidth {
+			offset.Y += int(a.tileHeight)
+			offset.X = 0
+		}
+		if offset.Y > sheetWidth {
+			fmt.Println("exceeded size")
+			return
+		}
+		if tile == nil {
+			err = fmt.Errorf("tile nil malfunction")
+			return
+		}
+		//fmt.Printf("%d,%d|", offset.X, offset.Y)
+
+		draw.Copy(img, offset, tile, tileSize, draw.Src, nil)
+	}
+	a.img = img
+
+	tileset := "tileset"
+	if len(m.Layers) > 0 {
+		tileset = "tilesets"
+	}
+	fmt.Println(tileset, "reduced from", a.oldTileCount, "to", a.newTileCount, "total tiles")
 	return
 }
 
@@ -139,50 +105,123 @@ func sqDiffUInt8(x, y uint8) uint64 {
 	return d * d
 }
 
-// AppendUnique will append if unique, otherwise returns existing index
-func (a *Atlas) AppendUnique(img *image.RGBA) (index int64) {
+// AppendUnique will append if unique and return new index, otherwise returns existing index
+func (a *Atlas) AppendUnique(img *image.RGBA) (gid *model.GID) {
+	var index int64
+	var rotation int
+	defer func() {
+		gid = model.NewGID(uint32(index))
+		switch rotation {
+		case 0: //no rotation
+		case 1: //90 ccw
+			gid.RotationUpdate(270)
+		case 2:
+			gid.RotationUpdate(180)
+		case 3:
+			gid.RotationUpdate(90)
+		}
+	}()
+
 	var tile *image.RGBA
-	var i *image.NRGBA
-	var t *image.NRGBA
 	for index, tile = range a.tiles {
-		i = imaging.Rotate90(img)
-		t = imaging.Rotate90(tile)
-		isMatch := doCompare(i, t)
-		if isMatch {
-			return
-		}
-		i = imaging.Rotate90(img)
-		t = imaging.Rotate90(tile)
-		isMatch = doCompare(i, t)
-		if isMatch {
-			return
-		}
-		i = imaging.Rotate90(img)
-		t = imaging.Rotate90(tile)
-		isMatch = doCompare(i, t)
-		if isMatch {
-			return
-		}
-		i = imaging.Rotate90(img)
-		t = imaging.Rotate90(tile)
-		isMatch = doCompare(i, t)
-		if isMatch {
-			return
+		for rotation = 0; rotation < 4; rotation++ {
+			if doCompare(img, tile, rotation) {
+				return
+			}
 		}
 	}
-
+	a.tiles[int64(len(a.tiles))] = img
 	index = int64(len(a.tiles))
-	a.tiles[index] = img
 	return
 }
 
-func doCompare(img *image.NRGBA, tile *image.NRGBA) (isMatch bool) {
+func doCompare(img *image.RGBA, tile *image.RGBA, rotation int) (isMatch bool) {
 	isMatch = true
-	for y := img.Bounds().Min.Y; isMatch && y < img.Bounds().Max.Y; y++ {
-		for x := img.Bounds().Min.X; isMatch && x < img.Bounds().Max.X; x++ {
-			//fmt.Println(tile.At(x, y), img.At(x, y))
-			if tile.At(x, y) != img.At(x, y) {
-				isMatch = false
+	switch rotation {
+	case 0: //0*
+		for y := img.Bounds().Min.Y; isMatch && y < img.Bounds().Max.Y; y++ {
+			for x := img.Bounds().Min.X; isMatch && x < img.Bounds().Max.X; x++ {
+				//fmt.Println(tile.At(x, y), img.At(x, y))
+				if tile.At(x, y) != img.At(x, y) {
+					isMatch = false
+					return
+				}
+			}
+		}
+	case 1: //90*
+
+		// ix = image
+		// x = tile
+
+		ix := 0
+		iy := 0
+
+		//y = 0, y< max; y++
+		//x = 0, x< max; x++
+		//0,0 0,1 0,2
+		//1,0 1,1 1,2
+		//2,0 2,1 2,2
+		//CC W90
+		//x=2,y=1
+
+		for y := img.Bounds().Min.Y; isMatch && y < img.Bounds().Max.Y; y++ {
+			for x := img.Bounds().Min.X; isMatch && x < img.Bounds().Max.X; x++ {
+				ix = y
+				iy = x
+				if tile.At(x, y) != img.At(ix, iy) {
+					isMatch = false
+					return
+				}
+			}
+		}
+	case 2: //180*
+		//x0, y1
+		//0,0 0,1 0,2
+		//1,0 1,1 1,2
+		//2,0 2,1 2,2
+		//x = iy
+		//y = ix
+		ix := 0
+		iy := 0
+
+		for y := img.Bounds().Min.Y; isMatch && y < img.Bounds().Max.Y; y++ {
+			for x := img.Bounds().Min.X; isMatch && x < img.Bounds().Max.X; x++ {
+				ix = img.Bounds().Max.X - x
+				iy = img.Bounds().Max.Y - y
+				if tile.At(x, y) != img.At(ix, iy) {
+					isMatch = false
+					return
+				}
+			}
+		}
+	case 3: //270*
+		ix := 0
+		iy := 0
+		//0,0 0,1 0,2, 0,3 .. 0,7, 0,8
+		//1,0 1,1 1,2,             1,8
+		//2,0 2,1 2,2
+		//..
+		//7,0
+		//8,0
+
+		// x = 2, y = 1
+		// ix = (maxX - x)
+		// ix = (2-1), = 1
+		// iy = (maxY - y)
+		// iy = (2-2) = 0
+
+		// x = 7, y = 0
+		// ix = 8-7 = 1
+		// iy = 8-0= 8
+		for y := img.Bounds().Min.Y; isMatch && y < img.Bounds().Max.Y; y++ {
+			for x := img.Bounds().Min.X; isMatch && x < img.Bounds().Max.X; x++ {
+				ix = img.Bounds().Max.X - x
+				iy = img.Bounds().Max.Y - y
+				if tile.At(x, y) != img.At(ix, iy) {
+					isMatch = false
+					return
+				}
+
 			}
 		}
 	}

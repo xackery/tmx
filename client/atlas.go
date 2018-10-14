@@ -9,19 +9,19 @@ import (
 	"github.com/xackery/tmx/pb"
 )
 
-// NewAtlas creates a new atlas from an image file, using provided tileset as a reference
-func NewAtlas(ctx context.Context, path string, t *pb.TileSet) (a *atlas.Atlas, err error) {
+// AppendAtlas appends elements to an atlas from an image file, using provided tileset as a reference
+func AppendAtlas(ctx context.Context, a *atlas.Atlas, path string, m *pb.Map, t *pb.TileSet, usedTiles map[uint32]bool) (na *atlas.Atlas, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return
 	}
 	defer f.Close()
-	d := atlas.NewDecoder(f, t)
-	a = &atlas.Atlas{}
+	d := atlas.NewDecoder(f, m, t, usedTiles)
 	err = d.Decode(a)
 	if err != nil {
 		err = errors.Wrap(err, "marshal")
 		return
 	}
+	na = a
 	return
 }

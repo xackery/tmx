@@ -45,34 +45,23 @@ message TileSet {
 	repeated Tile tiles = 10;
 	int64 tile_count = 11;
 	int64 column_count = 12;
+	string version = 13;
+	string tiled_version = 14;
 }
 
 
 message Data {
 	string encoding = 1;
 	string compression = 2;
-	bytes raw_data = 3;
+	string raw_data = 3;
 	repeated DataTile data_tiles = 4;
 	repeated Chunk chunks = 5;
 }
 
 message DataTile {
-	int64 id = 1;
-	TileSet tileset = 2;
-	bool is_horizontal_flip = 3;
-	bool is_vertical_flip = 4;
-	bool is_diagonal_flip = 5;
-	bool is_nil = 6;
-	int64 gid = 7;
-}
-
-message DecodedTile {
-	int64 id = 1;
-	TileSet tileset = 2;
-	bool horizontal_flip = 3;
-	bool vertical_flip = 4;
-	bool diagonal_flip = 5;
-	bool nil = 6;
+	fixed32 gid = 1;
+	fixed32 x = 2;
+	fixed32 y = 3;
 }
 
 message Image {

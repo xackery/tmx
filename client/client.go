@@ -8,7 +8,6 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/xackery/tmx/atlas"
@@ -29,7 +28,6 @@ func New(ctx context.Context) (c *Client, err error) {
 
 // LoadFile loads a TMX file and all referenced assets
 func (c *Client) LoadFile(ctx context.Context, path string) (m *pb.Map, a *atlas.Atlas, err error) {
-	start := time.Now()
 	dir := filepath.Dir(path)
 	//load map
 	m, err = NewMap(ctx, path)
@@ -38,6 +36,15 @@ func (c *Client) LoadFile(ctx context.Context, path string) (m *pb.Map, a *atlas
 		return
 	}
 
+	usedTiles := make(map[uint32]bool)
+	//make a list of every single tile used
+	for _, l := range m.Layers {
+		for _, d := range l.Data.DataTiles {
+			usedTiles[model.Index(d.Gid)] = true
+		}
+	}
+
+	a = &atlas.Atlas{}
 	var nt *pb.TileSet
 	//load external tilesets
 	for i := range m.TileSets {
@@ -55,9 +62,6 @@ func (c *Client) LoadFile(ctx context.Context, path string) (m *pb.Map, a *atlas
 			nt.FirstGid = firstGid
 			nt.Source = sourceFile
 			m.TileSets[i] = nt
-
-			//fmt.Println(newTs)
-
 			ts = nt
 		}
 
@@ -67,15 +71,13 @@ func (c *Client) LoadFile(ctx context.Context, path string) (m *pb.Map, a *atlas
 		}
 		sourceFile = ts.Image.Source
 		imgPath := fmt.Sprintf("%s/%s", dir, sourceFile)
-		fmt.Println(imgPath)
-		a, err = NewAtlas(ctx, imgPath, nt)
+		fmt.Println("parsing tileset", imgPath)
+		a, err = AppendAtlas(ctx, a, imgPath, m, nt, usedTiles)
+
 		if err != nil {
 			err = errors.Wrapf(err, "tsx %d %s (img: %s)", firstGid, sourceFile, imgPath)
 			return
 		}
-	}
-	if model.IsVerbose() {
-		fmt.Println("complete", time.Since(start))
 	}
 	return
 }
@@ -88,10 +90,36 @@ func (c *Client) SaveFiles(ctx context.Context, m *pb.Map, a *atlas.Atlas, path 
 		return
 	}
 	defer f.Close()
+	ext := filepath.Ext(path)
+
+	iPath := path[0 : len(path)-len(ext)]
+	//for now just png for atlas
+	//dir := filepath.Dir(path)
+	atlasFile := ".png"
+	imgPath := fmt.Sprintf("%s%s", iPath, atlasFile)
+	imgf, err := os.Create(imgPath)
+	if err != nil {
+		err = errors.Wrap(err, "failed to create file")
+		return
+	}
+	defer imgf.Close()
+
+	e := png.Encoder{
+		CompressionLevel: png.BestCompression,
+	}
+	img, err := a.Bake(m)
+	if err != nil {
+		err = errors.Wrap(err, "failed to encode new atlas image")
+		return
+	}
+	err = e.Encode(imgf, img)
+	if err != nil {
+		err = errors.Wrapf(err, "atlasEncode %s", imgPath)
+		return
+	}
 
 	//extract image data
 
-	ext := filepath.Ext(path)
 	switch ext {
 	case ".data":
 		e := tmx.NewEncoder(f)
@@ -107,6 +135,7 @@ func (c *Client) SaveFiles(ctx context.Context, m *pb.Map, a *atlas.Atlas, path 
 		err = e.Encode(m)
 	case ".json":
 		e := json.NewEncoder(f)
+		e.SetIndent("", "	")
 		err = e.Encode(m)
 	default:
 		err = fmt.Errorf("unknown target file extension: %s (accepted values: json, data, bin)", ext)
@@ -122,25 +151,5 @@ func (c *Client) SaveFiles(ctx context.Context, m *pb.Map, a *atlas.Atlas, path 
 		return
 	}
 
-	path = path[0 : len(path)-len(ext)]
-	//for now just png for atlas
-	//dir := filepath.Dir(path)
-	atlasFile := ".png"
-	imgPath := fmt.Sprintf("%s%s", path, atlasFile)
-	imgf, err := os.Create(imgPath)
-	if err != nil {
-		err = errors.Wrap(err, "failed to create file")
-		return
-	}
-	defer imgf.Close()
-
-	e := png.Encoder{
-		CompressionLevel: png.BestCompression,
-	}
-	err = e.Encode(imgf, a.Image())
-	if err != nil {
-		err = errors.Wrapf(err, "atlasEncode %s", imgPath)
-		return
-	}
 	return
 }

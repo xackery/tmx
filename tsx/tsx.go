@@ -31,8 +31,12 @@ func walkTSXRoot(t *pb.TileSet, nodes []Node) (err error) {
 					t.TileCount = model.ToInt64(attr.Value)
 				case "columns":
 					t.ColumnCount = model.ToInt64(attr.Value)
+				case "version":
+					t.Version = attr.Value
+				case "tiledversion":
+					t.TiledVersion = attr.Value
 				default:
-					fmt.Println("unknown attribute inside", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
+					fmt.Println("tmx?attr", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
 				}
 
 			}

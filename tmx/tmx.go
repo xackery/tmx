@@ -2,7 +2,10 @@ package tmx
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/xackery/tmx/model"
 	"github.com/xackery/tmx/pb"
 )
@@ -43,7 +46,7 @@ func walkTMXRoot(m *pb.Map, nodes []Node) (err error) {
 				case "nextobjectid":
 					m.NextObjectId = attr.Value
 				default:
-					fmt.Println("unknown attribute inside", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
+					fmt.Println("tmx:attr?", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
 				}
 			}
 			err = walkTMXMap(m, n.Nodes)
@@ -82,7 +85,7 @@ func walkTMXMap(m *pb.Map, nodes []Node) (err error) {
 				case "Visible":
 					l.Visible = model.ToBool(attr.Value)
 				default:
-					fmt.Println("unknown attribute inside", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
+					fmt.Println("tmx>map:attr?", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
 				}
 			}
 			err = walkTMXLayer(l, n.Nodes)
@@ -112,8 +115,12 @@ func walkTMXMap(m *pb.Map, nodes []Node) (err error) {
 					t.TileCount = model.ToInt64(attr.Value)
 				case "columns":
 					t.ColumnCount = model.ToInt64(attr.Value)
+				case "version":
+					t.Version = attr.Value
+				case "tiledversion":
+					t.TiledVersion = attr.Value
 				default:
-					fmt.Println("unknown attribute inside", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
+					fmt.Println("TMX>map:attr?", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
 				}
 
 			}
@@ -138,15 +145,20 @@ func walkTMXLayer(l *pb.Layer, nodes []Node) (err error) {
 				case "compression":
 					d.Compression = attr.Value
 				default:
-					fmt.Println("unknown attribute inside", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
+					fmt.Println("tmx>map>layer:attr?", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
 				}
 			}
-			d.RawData = n.Content
+			d.RawData = string(n.Content)
 			if err != nil {
 				return
 			}
 			err = walkTMXData(d, n.Nodes)
 			if err != nil {
+				return
+			}
+			err = parseData(d)
+			if err != nil {
+				err = errors.Wrap(err, "failed to parse data")
 				return
 			}
 			l.Data = d
@@ -166,9 +178,9 @@ func walkTMXData(d *pb.Data, nodes []Node) (err error) {
 			for _, attr := range n.Attrs {
 				switch attr.Name.Local {
 				case "gid":
-					t.Gid = model.ToInt64(attr.Value)
+					t.Gid = uint32(model.ToInt64(attr.Value))
 				default:
-					fmt.Println("unknown attribute inside", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
+					fmt.Println("tmx>map>layer>data>tile?attr", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
 				}
 			}
 			d.DataTiles = append(d.DataTiles, t)
@@ -185,13 +197,41 @@ func walkTMXData(d *pb.Data, nodes []Node) (err error) {
 				case "height":
 					c.Height = model.ToInt64(attr.Value)
 				default:
-					fmt.Println("unknown attribute inside", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
+					fmt.Println("tmx>map>layer>data>chunk?attr", n.XMLName.Local, "name:", attr.Name.Local, "value:", attr.Value)
 				}
 			}
 			d.Chunks = append(d.Chunks, c)
 		default:
 			fmt.Println("unknown element inside layer:", n.XMLName.Local)
 		}
+	}
+	return
+}
+
+func parseData(data *pb.Data) (err error) {
+	cleaner := func(r rune) rune {
+		if (r >= '0' && r <= '9') || r == ',' {
+			return r
+		}
+		return -1
+	}
+	rawDataClean := strings.Map(cleaner, string(data.RawData))
+
+	str := strings.Split(string(rawDataClean), ",")
+
+	//d.DataTiles = &pb.DataTile{}
+
+	for _, s := range str {
+		var d uint64
+		d, err = strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			err = errors.Wrapf(err, "invalid field at %d", len(data.DataTiles))
+			return
+		}
+		dt := &pb.DataTile{
+			Gid: uint32(d),
+		}
+		data.DataTiles = append(data.DataTiles, dt)
 	}
 	return
 }

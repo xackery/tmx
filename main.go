@@ -7,14 +7,29 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/xackery/tmx/client"
-	"github.com/xackery/tmx/model"
+	//"github.com/xackery/tmx/model"
 )
 
 var (
 	version string
 )
 
+/*
+gidBare := gid &^ GIDFlip
+ID:             ID(gidBare - m.Tilesets[i].FirstGID)
+
+
+770 //base val
+771 //0 fff
+2684355437 // 270 ccw tft
+1073742701 // 180 ftf
+536871683 // 90 ccw fft
+val = val &^ (0x80000000 | 0x40000000 | 0x20000000)
+*/
 func main() {
+
+	//fmt.Println(model.NewGID(2147483649).Index(), model.NewGID(2147483649).RotationRead())
+	//return
 	err := run()
 	if err != nil {
 		fmt.Println("error:", err.Error())
@@ -23,13 +38,10 @@ func main() {
 }
 
 func run() (err error) {
+
 	var src, dst string
 	args := os.Args
 	if isVersionCheck(args) {
-		return
-	}
-	if isVerboseCheck(args) {
-		model.SetVerbose(true)
 		return
 	}
 	if len(args) < 3 {
@@ -72,15 +84,6 @@ func usage() (err error) {
 	return
 }
 
-func isVerboseCheck(args []string) (isVerbose bool) {
-	for _, arg := range args {
-		if arg == "-v" {
-			isVerbose = true
-			return
-		}
-	}
-	return
-}
 func isVersionCheck(args []string) (isCheck bool) {
 	for _, arg := range args {
 		if arg == "version" || arg == "/?" {

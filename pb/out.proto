@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package pb;
+
+message OutMap {
+	string source = 2;
+	int64 width = 3;
+	int64 height = 4;
+	int64 tile_width = 5;
+	int64 tile_height = 6;
+	//repeated Property properties = 7;
+	repeated OutLayer layers = 8;
+	//repeated ObjectGroup object_groups = 9;
+	//repeated TileSet tile_sets = 18;
+	//repeated Group groups = 20;
+}
+
+
+message OutLayer {
+	string name = 1;
+	float opacity = 2;
+	repeated OutTile tiles = 4;
+}
+
+message OutTile {
+	fixed32 gid = 1;
+}

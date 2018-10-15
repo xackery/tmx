@@ -25,7 +25,7 @@ func NewEncoder(w io.Writer) (e *Encoder) {
 }
 
 // Encode encodes protobuf to writer
-func (e *Encoder) Encode(dst *pb.Map) (err error) {
+func (e *Encoder) Encode(dst *pb.OutMap) (err error) {
 	data, err := proto.Marshal(dst)
 	if err != nil {
 		err = errors.Wrap(err, "failed to marshal protobuf")

@@ -120,23 +120,44 @@ func (c *Client) SaveFiles(ctx context.Context, m *pb.Map, a *atlas.Atlas, path 
 
 	//extract image data
 
+	out := &pb.OutMap{
+		Source:     imgPath,
+		Width:      m.Width,
+		Height:     m.Height,
+		TileWidth:  m.TileWidth,
+		TileHeight: m.TileHeight,
+		TileCount:  int64(a.LastTileIndex()),
+	}
+	for _, l := range m.Layers {
+		outL := &pb.OutLayer{
+			Name:    l.Name,
+			Opacity: l.Opacity,
+		}
+		for _, t := range l.Data.DataTiles {
+			outT := &pb.OutTile{Gid: t.GetGid()}
+			outL.Tiles = append(outL.Tiles, outT)
+		}
+		out.Layers = append(out.Layers, outL)
+	}
+
+	//do layers
 	switch ext {
 	case ".data":
 		e := tmx.NewEncoder(f)
-		err = e.Encode(m)
+		err = e.Encode(out)
 	case ".bin":
 		e := tmx.NewEncoder(f)
-		err = e.Encode(m)
+		err = e.Encode(out)
 	case ".xml":
 		e := xml.NewEncoder(f)
-		err = e.Encode(m)
+		err = e.Encode(out)
 	case ".yml":
 		e := yaml.NewEncoder(f)
-		err = e.Encode(m)
+		err = e.Encode(out)
 	case ".json":
 		e := json.NewEncoder(f)
 		e.SetIndent("", "	")
-		err = e.Encode(m)
+		err = e.Encode(out)
 	default:
 		err = fmt.Errorf("unknown target file extension: %s (accepted values: json, data, bin)", ext)
 		return

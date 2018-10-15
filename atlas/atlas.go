@@ -17,9 +17,13 @@ type Atlas struct {
 	img          *image.RGBA
 	tileWidth    int64
 	tileHeight   int64
-	lastIndex    uint32
 	newTileCount int
 	oldTileCount int
+}
+
+// LastTileIndex returns the last added index
+func (a *Atlas) LastTileIndex() int {
+	return len(a.tiles)
 }
 
 // Bake returns the internal image

@@ -162,6 +162,7 @@ func walkTMXLayer(l *pb.Layer, nodes []Node) (err error) {
 				return
 			}
 			l.Data = d
+			d.RawData = ""
 		default:
 			fmt.Println("unknown element inside layer:", n.XMLName.Local)
 		}

@@ -12,7 +12,7 @@ import (
 
 // Atlas represents an image atlas
 type Atlas struct {
-	tiles        map[int64]*image.RGBA
+	tiles        map[int]*image.RGBA
 	tileMap      map[uint32]*model.GID
 	img          *image.RGBA
 	tileWidth    int64
@@ -31,22 +31,37 @@ func (a *Atlas) Bake(m *pb.Map) (img *image.RGBA, err error) {
 
 	//now we remap the map data with the new tilmap
 	for i := range m.Layers {
-		for j, d := range m.Layers[i].Data.DataTiles {
+		for j := 0; j < len(m.Layers[i].Data.DataTiles); j++ {
+			d := m.Layers[i].Data.DataTiles[j]
 			if d.Gid == 0 {
 				continue
 			}
 			oldGid := model.NewGID(d.Gid)
 
 			newGid := a.tileMap[model.Index(d.Gid)]
-			err = newGid.RotationUpdate(oldGid.RotationRead())
-			if err != nil {
-				return
+			if oldGid.HRead() && newGid.HRead() {
+				newGid.HUpdate(false)
 			}
+			newGid.HUpdate(oldGid.HRead())
+			if oldGid.VRead() && newGid.VRead() {
+				newGid.VUpdate(false)
+			}
+			newGid.VUpdate(oldGid.VRead())
+			if oldGid.DRead() && newGid.DRead() {
+				newGid.DUpdate(false)
+			}
+			newGid.DUpdate(oldGid.DRead())
+
+			fmt.Println(i, oldGid.Index(), oldGid.HRead(), oldGid.VRead(), oldGid.DRead(), oldGid.ValueRead(), newGid.ValueRead(), newGid.Index())
+			//err = newGid.RotationUpdate(oldGid.RotationRead())
+			//if err != nil {
+			//	return
+			//}
 			//fmt.Println("remapped", oldGid.ValueRead(), oldGid.Index(), oldGid.RotationRead(), "to", newGid.ValueRead(), newGid.Index(), "rotation", newGid.RotationRead())
 			if newGid == nil {
 				continue
 			}
-			newGid.RotationUpdate(oldGid.RotationRead())
+			//newGid.RotationUpdate(oldGid.RotationRead())
 			m.Layers[i].Data.DataTiles[j].Gid = newGid.ValueRead()
 		}
 	}
@@ -61,8 +76,16 @@ func (a *Atlas) Bake(m *pb.Map) (img *image.RGBA, err error) {
 	tileSize := image.Rect(0, 0, int(a.tileWidth), int(a.tileHeight))
 	offset := image.ZP
 	//fmt.Println(len(a.tiles), "total tiles")
-	for _, tile := range a.tiles {
+	for i := 0; i < len(a.tiles); i++ {
+		tile := a.tiles[i]
 
+		if tile == nil {
+			err = fmt.Errorf("tile nil malfunction")
+			return
+		}
+		//fmt.Printf("%d,%d|", offset.X, offset.Y)
+
+		draw.Copy(img, offset, tile, tileSize, draw.Src, nil)
 		offset.X += int(a.tileWidth)
 		if offset.X > sheetWidth {
 			offset.Y += int(a.tileHeight)
@@ -72,13 +95,6 @@ func (a *Atlas) Bake(m *pb.Map) (img *image.RGBA, err error) {
 			fmt.Println("exceeded size")
 			return
 		}
-		if tile == nil {
-			err = fmt.Errorf("tile nil malfunction")
-			return
-		}
-		//fmt.Printf("%d,%d|", offset.X, offset.Y)
-
-		draw.Copy(img, offset, tile, tileSize, draw.Src, nil)
 	}
 	a.img = img
 
@@ -111,126 +127,107 @@ func sqDiffUInt8(x, y uint8) uint64 {
 
 // AppendUnique will append if unique and return new index, otherwise returns existing index
 func (a *Atlas) AppendUnique(img *image.RGBA) (gid *model.GID) {
-	var index int64
-	var rotation int
-	defer func() {
-		gid = model.NewGID(uint32(index))
-		switch rotation {
-		case 0: //no rotation
-		case 1: //90 ccw
-			gid.RotationUpdate(270)
-		case 2:
-			gid.RotationUpdate(180)
-		case 3:
-			gid.RotationUpdate(90)
+	var isMatch, h, v, d bool
+	for i := 0; i < len(a.tiles); i++ {
+		isMatch, h, v, d = doCompare(img, a.tiles[i])
+		if isMatch {
+			gid = model.NewGID(uint32(i + 1))
+			gid.HUpdate(h)
+			gid.VUpdate(v)
+			gid.DUpdate(d)
 		}
-	}()
+	}
+	a.tiles[len(a.tiles)] = img
+	gid = model.NewGID(uint32(len(a.tiles)))
+	return
+}
 
-	var tile *image.RGBA
-	for index, tile = range a.tiles {
-		for rotation = 0; rotation < 4; rotation++ {
-			if doCompare(img, tile, rotation) {
+func doCompare(img *image.RGBA, tile *image.RGBA) (isMatch, h, v, d bool) {
+	isMatch = true //any orientation matched
+	m := true      //normal match
+	h = true       //horizontal flag match
+	v = true       //vertical flag match
+	d = true       //diagnol flag match
+	hvd := true
+	hd := true
+	vd := true
+	//var tx, ty int
+
+	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
+		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
+			//m
+			if m && tile.At(x, y) != img.At(x, y) {
+				m = false
+			}
+			h = false
+			v = false
+			d = false
+			hvd = false
+			hd = false
+			vd = false
+			/*
+				//h
+				tx = img.Bounds().Max.X - x
+				ty = y
+				if h && tile.At(tx, ty) != img.At(x, y) {
+					h = false
+				}
+				//v
+				tx = x
+				ty = img.Bounds().Max.Y - y
+				if v && tile.At(tx, ty) != img.At(x, y) {
+					v = false
+				}
+				//d
+				tx = img.Bounds().Max.Y - x
+				ty = x
+				if d && tile.At(tx, ty) != img.At(x, y) {
+					d = false
+				}
+
+				//hvd
+				tx = img.Bounds().Max.Y - x
+				ty = x
+				tx = img.Bounds().Max.X - tx
+				ty = img.Bounds().Max.Y - ty
+				if hvd && tile.At(tx, ty) != img.At(x, y) {
+					hvd = false
+				}
+
+				//vd
+				tx = img.Bounds().Max.Y - x
+				ty = x
+				ty = img.Bounds().Max.Y - ty
+				if vd && tile.At(tx, ty) != img.At(x, y) {
+					vd = false
+				}
+
+				//hd
+				tx = img.Bounds().Max.Y - x
+				ty = x
+				tx = img.Bounds().Max.X - tx
+				if vd && tile.At(tx, ty) != img.At(x, y) {
+					vd = false
+				}
+			*/
+			if !m && !h && !v && !d && !hvd && !hd && !vd {
+				isMatch = false
 				return
 			}
 		}
 	}
-	a.tiles[int64(len(a.tiles))] = img
-	index = int64(len(a.tiles))
-	return
-}
-
-func doCompare(img *image.RGBA, tile *image.RGBA, rotation int) (isMatch bool) {
-	isMatch = true
-	switch rotation {
-	case 0: //0*
-		for y := img.Bounds().Min.Y; isMatch && y < img.Bounds().Max.Y; y++ {
-			for x := img.Bounds().Min.X; isMatch && x < img.Bounds().Max.X; x++ {
-				//fmt.Println(tile.At(x, y), img.At(x, y))
-				if tile.At(x, y) != img.At(x, y) {
-					isMatch = false
-					return
-				}
-			}
-		}
-	case 1: //90*
-
-		// ix = image
-		// x = tile
-
-		ix := 0
-		iy := 0
-
-		//y = 0, y< max; y++
-		//x = 0, x< max; x++
-		//0,0 0,1 0,2
-		//1,0 1,1 1,2
-		//2,0 2,1 2,2
-		//CC W90
-		//x=2,y=1
-
-		for y := img.Bounds().Min.Y; isMatch && y < img.Bounds().Max.Y; y++ {
-			for x := img.Bounds().Min.X; isMatch && x < img.Bounds().Max.X; x++ {
-				ix = y
-				iy = x
-				if tile.At(x, y) != img.At(ix, iy) {
-					isMatch = false
-					return
-				}
-			}
-		}
-	case 2: //180*
-		//x0, y1
-		//0,0 0,1 0,2
-		//1,0 1,1 1,2
-		//2,0 2,1 2,2
-		//x = iy
-		//y = ix
-		ix := 0
-		iy := 0
-
-		for y := img.Bounds().Min.Y; isMatch && y < img.Bounds().Max.Y; y++ {
-			for x := img.Bounds().Min.X; isMatch && x < img.Bounds().Max.X; x++ {
-				ix = img.Bounds().Max.X - x
-				iy = img.Bounds().Max.Y - y
-				if tile.At(x, y) != img.At(ix, iy) {
-					isMatch = false
-					return
-				}
-			}
-		}
-	case 3: //270*
-		ix := 0
-		iy := 0
-		//0,0 0,1 0,2, 0,3 .. 0,7, 0,8
-		//1,0 1,1 1,2,             1,8
-		//2,0 2,1 2,2
-		//..
-		//7,0
-		//8,0
-
-		// x = 2, y = 1
-		// ix = (maxX - x)
-		// ix = (2-1), = 1
-		// iy = (maxY - y)
-		// iy = (2-2) = 0
-
-		// x = 7, y = 0
-		// ix = 8-7 = 1
-		// iy = 8-0= 8
-		for y := img.Bounds().Min.Y; isMatch && y < img.Bounds().Max.Y; y++ {
-			for x := img.Bounds().Min.X; isMatch && x < img.Bounds().Max.X; x++ {
-				ix = img.Bounds().Max.X - x
-				iy = img.Bounds().Max.Y - y
-				if tile.At(x, y) != img.At(ix, iy) {
-					isMatch = false
-					return
-				}
-
-			}
-		}
+	if hvd {
+		h = true
+		v = true
+		d = true
 	}
-	if isMatch {
-		return
+	if hd {
+		h = true
+		d = true
+	}
+	if vd {
+		v = true
+		d = true
 	}
 	return
 }

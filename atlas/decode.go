@@ -35,7 +35,7 @@ func NewDecoder(r io.Reader, m *pb.Map, t *pb.TileSet, usedTiles map[uint32]bool
 func (d *Decoder) Decode(a *Atlas) (err error) {
 	if a.tileMap == nil {
 		a.tileMap = make(map[uint32]*model.GID)
-		a.tiles = make(map[int64]*image.RGBA)
+		a.tiles = make(map[int]*image.RGBA)
 		a.tileWidth = d.t.TileWidth
 		a.tileHeight = d.t.TileHeight
 	}
@@ -57,7 +57,6 @@ func (d *Decoder) Decode(a *Atlas) (err error) {
 	//fmt.Println("firstgid", oldIndex)
 	var offset image.Point
 
-	doThreading := false
 	var gid *model.GID
 	var ok bool
 	newTileCountBefore := len(a.tiles)
@@ -71,13 +70,12 @@ func (d *Decoder) Decode(a *Atlas) (err error) {
 			tile := image.NewRGBA(tileSize)
 
 			draw.Draw(tile, tileSize, d.img, offset, draw.Src)
-			if doThreading {
-				a.AppendUniqueThread(tile)
-			} else {
-				gid = a.AppendUnique(tile)
-			}
+			gid = a.AppendUnique(tile)
 
 			//fmt.Println("mapping", oldIndex, gid.Index())
+			if oldIndex < 5 {
+				fmt.Println(gid)
+			}
 			a.tileMap[oldIndex] = gid
 			oldIndex++
 		}

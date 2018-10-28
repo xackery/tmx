@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "pb/out.proto";
+
 package pb;
 
 message Map {
@@ -23,6 +25,7 @@ message Map {
 	repeated TileSet tile_sets = 18;
 	repeated ImageLayer image_layers = 19;
 	repeated Group groups = 20;
+	repeated Collider colliders  = 21;
 }
 
 message Tile {

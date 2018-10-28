@@ -11,6 +11,7 @@ message OutMap {
 	int64 tile_count = 7;
 	//repeated Property properties = 7;
 	repeated OutLayer layers = 8;
+	repeated Collider colliders = 9;
 	//repeated ObjectGroup object_groups = 9;
 	//repeated TileSet tile_sets = 18;
 	//repeated Group groups = 20;
@@ -25,4 +26,9 @@ message OutLayer {
 
 message OutTile {
 	fixed32 gid = 1;
+}
+
+message Collider {
+	bool is_collider = 1;
+	float cost = 2;
 }

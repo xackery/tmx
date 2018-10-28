@@ -127,6 +127,7 @@ func (c *Client) SaveFiles(ctx context.Context, m *pb.Map, a *atlas.Atlas, path 
 		TileWidth:  m.TileWidth,
 		TileHeight: m.TileHeight,
 		TileCount:  int64(a.LastTileIndex()),
+		Colliders:  m.Colliders,
 	}
 	for _, l := range m.Layers {
 		outL := &pb.OutLayer{

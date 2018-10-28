@@ -3,6 +3,8 @@ package atlas
 import (
 	"fmt"
 	"image"
+	"image/color"
+	"strings"
 
 	"github.com/xackery/tmx/model"
 	"github.com/xackery/tmx/pb"
@@ -35,17 +37,12 @@ func (a *Atlas) Bake(m *pb.Map) (img *image.RGBA, err error) {
 			}
 			newGid.DUpdate(oldGid.DRead())
 
-			//fmt.Println(i, oldGid.Index(), oldGid.HRead(), oldGid.VRead(), oldGid.DRead(), oldGid.ValueRead(), newGid.ValueRead(), newGid.Index())
-			//err = newGid.RotationUpdate(oldGid.RotationRead())
-			//if err != nil {
-			//	return
-			//}
-			//fmt.Println("remapped", oldGid.ValueRead(), oldGid.Index(), oldGid.RotationRead(), "to", newGid.ValueRead(), newGid.Index(), "rotation", newGid.RotationRead())
 			if newGid == nil {
 				continue
 			}
-			//newGid.RotationUpdate(oldGid.RotationRead())
+
 			m.Layers[i].Data.DataTiles[j].Gid = newGid.ValueRead()
+
 		}
 	}
 
@@ -89,5 +86,37 @@ func (a *Atlas) Bake(m *pb.Map) (img *image.RGBA, err error) {
 		tileset = "tilesets"
 	}
 	fmt.Println(tileset, "reduced from", a.oldTileCount, "to", a.newTileCount, "total tiles")
+
+	//build collider
+	if len(m.Layers) < 1 {
+		return
+	}
+	empty := color.RGBA{0, 0, 0, 0}
+	for i := range m.Layers[0].Data.DataTiles {
+		isCollider := false
+		for _, l := range m.Layers {
+			if strings.Contains(strings.ToLower(l.Name), "bg") {
+				continue
+			}
+			t := l.Data.DataTiles[i]
+			id := model.Index(t.Gid)
+			if id == 0 {
+				continue
+			}
+			img := a.tiles[int(id)]
+			for y := 0; y < img.Bounds().Max.Y && !isCollider; y++ {
+				for x := 0; x < img.Bounds().Max.X && !isCollider; x++ {
+					//fmt.Println(img.At(x, y))
+					if img.At(x, y) != empty {
+						isCollider = true
+					}
+				}
+			}
+			if isCollider {
+				break
+			}
+		}
+		m.Colliders = append(m.Colliders, &pb.Collider{IsCollider: isCollider})
+	}
 	return
 }

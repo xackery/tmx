@@ -74,7 +74,7 @@ func (d *Decoder) Decode(a *Atlas) (err error) {
 
 			//fmt.Println("mapping", oldIndex, gid.Index())
 			if oldIndex < 5 {
-				fmt.Println(gid)
+				//fmt.Println(gid)
 			}
 			a.tileMap[oldIndex] = gid
 			oldIndex++

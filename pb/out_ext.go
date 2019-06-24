@@ -1,6 +1,9 @@
 package pb
 
 import (
+	fmt "fmt"
+	"image"
+
 	"github.com/xackery/egui"
 )
 
@@ -38,5 +41,25 @@ func (m *OutMap) ToEGUI() egui.MapData {
 		data.Colliders = append(data.Colliders, nc)
 	}
 
+	data.TileSheetWidth = data.Width * data.TileWidth
+	data.TileSheetHeight = data.Height * data.TileHeight
+
+	tileFrames := []image.Rectangle{}
+	tileFrames = append(tileFrames, image.Rect(0, 0, 0, 0))
+	tileCount := 0
+	var x, y int64
+
+	for y < data.TileSheetHeight { //tileCount < int(om.TileCount) {
+		tileFrames = append(tileFrames, image.Rect(int(x), int(y), int(x+data.TileWidth), int(y+data.TileHeight)))
+		fmt.Println(int(x), int(y), int(x+data.TileWidth), int(y+data.TileHeight))
+		x += data.TileWidth
+		if x > data.TileSheetWidth {
+			x = 0
+			y += data.TileHeight
+		}
+		//fmt.Println(tileCount, x, y)
+		tileCount++
+	}
+	data.TileFrames = tileFrames
 	return data
 }

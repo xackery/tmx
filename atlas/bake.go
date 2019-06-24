@@ -104,6 +104,9 @@ func (a *Atlas) Bake(m *pb.Map) (img *image.RGBA, err error) {
 				continue
 			}
 			img := a.tiles[int(id)]
+			if img == nil {
+				continue
+			}
 			for y := 0; y < img.Bounds().Max.Y && !isCollider; y++ {
 				for x := 0; x < img.Bounds().Max.X && !isCollider; x++ {
 					//fmt.Println(img.At(x, y))

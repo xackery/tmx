@@ -1,7 +1,6 @@
 package pb
 
 import (
-	fmt "fmt"
 	"image"
 
 	"github.com/xackery/egui"
@@ -51,7 +50,6 @@ func (m *OutMap) ToEGUI() egui.MapData {
 
 	for y < data.TileSheetHeight { //tileCount < int(om.TileCount) {
 		tileFrames = append(tileFrames, image.Rect(int(x), int(y), int(x+data.TileWidth), int(y+data.TileHeight)))
-		fmt.Println(int(x), int(y), int(x+data.TileWidth), int(y+data.TileHeight))
 		x += data.TileWidth
 		if x > data.TileSheetWidth {
 			x = 0

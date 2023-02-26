@@ -23,7 +23,7 @@ func TestGrid(t *testing.T) {
 		fmt.Printf("%s->", r.Action)
 	}
 
-	assert.Empty(route)
+	//assert.Empty(route)
 	assert.NotEmpty(route)
 
 }
